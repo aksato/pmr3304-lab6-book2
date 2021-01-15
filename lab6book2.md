@@ -1,12 +1,11 @@
 ---
 tags: [pmr3304]
-title: 'Ruby on Rails e React: Convertendo a Livraria Virtual em uma SPA (Single Page Application)'
-created: '2020-12-03T15:45:56.175Z'
-modified: '2021-01-14T22:12:29.982Z'
+title: "Ruby on Rails e React: Convertendo a Livraria Virtual em uma SPA (Single Page Application)"
+created: "2020-12-03T15:45:56.175Z"
+modified: "2021-01-14T22:12:29.982Z"
 ---
 
-Ruby on Rails e React: Convertendo a Livraria Virtual em uma SPA (Single Page Application)
-============================================================================================
+# Ruby on Rails e React: Convertendo a Livraria Virtual em uma SPA (Single Page Application)
 
 ## Introdução
 
@@ -18,7 +17,7 @@ A principal vantagem de SPAs é a drástica redução do número de recarregamen
 
 ## Capítulo 1 - Instalação
 
-Caso você já tenha pronta e funcionando a aplicação da Livraria Virtual em RoR, não é necessário instalar mais nenhum software. Caso contrário, é necessário instalar o Ruby on Rails (veja o procedimento em apostilas anteriores). 
+Caso você já tenha pronta e funcionando a aplicação da Livraria Virtual em RoR, não é necessário instalar mais nenhum software. Caso contrário, é necessário instalar o Ruby on Rails (veja o procedimento em apostilas anteriores).
 
 O código inicial da aplicação Livraria Virtual pode ser obtido no repositório no seguinte link:
 <https://gitlab.uspdigital.usp.br/andre.kubagawa/livra-rails>.
@@ -63,7 +62,7 @@ Confira em <http://localhost:3000/> se a livraria virtual está operando correta
 
 ## Capítulo 2 - Configurando o React com o Webpacker
 
-Relembrando, uma aplicação SPA utiliza apenas uma página HTML praticamente vazia e grosso o código do Frontend é declarado nos arquivos JS (Javascript). Vamos aplicar essa estrutura e criar a aplicação mais básica possível, ou seja, vamos primeiramente montar uma SPA "_Hello World_". 
+Relembrando, uma aplicação SPA utiliza apenas uma página HTML praticamente vazia e grosso o código do Frontend é declarado nos arquivos JS (Javascript). Vamos aplicar essa estrutura e criar a aplicação mais básica possível, ou seja, vamos primeiramente montar uma SPA "_Hello World_".
 
 Para tal, a primeira ação é instalar as bibliotecas React e integrar com o Webpacker. Lembre que o Webpacker é responsável por gerenciar todos os módulos em JS, inclusive os componentes React. Como saída, o Webpacker gera arquivos JS otimizados para serem executados pelo browser; o Webpacker também garante que a página HTML referencie os arquivos JS corretos.
 
@@ -88,19 +87,20 @@ Note que o arquivo `index.js` será linkado no HTML da nossa página solitária.
 <!-- app/views/layouts/application.html.erb -->
 <!DOCTYPE html>
 <html>
+  <head>
+    <title>Livra</title>
+    <%= csrf_meta_tags %> <%= csp_meta_tag %>
 
-<head>
-  <title>Livra</title>
-  <%= csrf_meta_tags %>
-  <%= csp_meta_tag %>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Inter&display=swap"
+      rel="stylesheet"
+    />
+  </head>
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css?family=Inter&display=swap" rel="stylesheet">
-</head>
-
-<body>
-  <%= yield %>
-</body>
+  <body>
+    <%= yield %>
+  </body>
 </html>
 ```
 
@@ -138,19 +138,275 @@ function App() {
 export default App;
 ```
 
-Caso não esteja executando, inicie o servidor com `rails server`. Depois, acesse <http://localhost:3000/> e verifique que a nossa SPA _Hello World_ está executando corretamente (como mostrado na figura abaixo). 
+Caso não esteja executando, inicie o servidor com `rails server`. Depois, acesse <http://localhost:3000/> e verifique que a nossa SPA _Hello World_ está executando corretamente (como mostrado na figura abaixo).
 
-![Hello World SPA with RoR backend](images/hello_world_spa.png)
+![Hello World SPA com backend RoR](images/hello_world_spa.png)
 
-## Capítulo 3 - Criando o leiaute base utilizando componentes
+## Capítulo 3 - Recriando o leiaute base utilizando componentes
 
-## Capítulo 4 - Criando componentes funcionais com estado utilizando Hooks
+No React, o desenvolvimento da aplicação pode ser compartimentalizada em componentes. Isso permite uma maior legibilidade e manutenção do código e também permite a reutilização de componentes. Na linguagem de templates do RoR, isso também era possível, só que com uma flexibilidade bem menor.
 
-## Capítulo 5 - Utilizando a API Fetch ou Axios para fazer requisições assíncronas
+Com isso em mente, vamos reescrever o leiaute base em forma de componentes React. Edite o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import React from "react";
+import "../stylesheets/application.css";
+
+const NavBar = () => <div className="w-full h-32 bg-green-500"></div>; // NavBar temporário
+const Footer = () => <div className="w-full h-16 bg-green-500"></div>; // Footer temporário
+
+function App() {
+  return (
+    <div className="flex flex-col h-screen justify-between overflow-y-scroll">
+      <NavBar />
+      <main className="w-full max-w-screen-xl mx-auto flex-grow">
+        <h1 className="text-3xl p-4">Hello world react</h1>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+export default App;
+```
+
+Neste código, o componente App é composto da barra de navegação `<NavBar />`, do conteúdo principal `<main>...</main>` e do rodapé `<Footer />`. A implementação dos dois componentes novos é temporária. Ao abrir a aplicação no browser (em <http://localhost:3000/>), devemos ver a seguinte página:
+
+![Leiaute simples no SPA com React](images/bare_layout_spa.png)
+
+onde as faixas superior e inferior são os componentes Navbar e Footer, respectivamente.
+
+### 3.1 Implementando o componente Footer
+
+Vamos agora substituir as implementações temporárias dos componentes pela versão real. Começaremos pelo Footer, que é mais simples. Para utilizar os ícones do Fontawesome de modo mais conveniente, podemos instalar algumas bibliotecas do React com os comandos:
+
+```bash
+yarn add @fortawesome/fontawesome-svg-core
+yarn add @fortawesome/free-solid-svg-icons
+yarn add @fortawesome/free-brands-svg-icons
+yarn add @fortawesome/react-fontawesome
+```
+
+Vamos organizar os arquivos dos nossos componentes desenvolvidos da seguinte forma: primeiro criaremos a pasta `app/javascript/packs/components`; depois, criaremos uma pasta própria para cada novo componente (iniciando com letra maiúscula), sendo o `index.js` o ponto de entrada.
+
+Assim, para o Footer, vamos criar o arquivo `app/javascript/packs/components/Footer/index.js` com o conteúdo
+
+```js
+// app/javascript/packs/components/Footer/index.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEnvelope } from "@fortawesome/free-solid-svg-icons";
+import {
+  faFacebook,
+  faTwitter,
+  faInstagram,
+  faYoutube,
+} from "@fortawesome/free-brands-svg-icons";
+
+const socialMediaIcons = [
+  faFacebook,
+  faTwitter,
+  faInstagram,
+  faEnvelope,
+  faYoutube,
+];
+
+const Footer = () => (
+  <footer className="w-full bg-green-500 text-white p-4 flex flex-col justify-center items-center">
+    <ul>
+      {socialMediaIcons.map((icon, id) => (
+        <li key={id} className="inline-block px-2 text-lg">
+          <FontAwesomeIcon icon={icon} className="hover:text-gray-300" />
+        </li>
+      ))}
+    </ul>
+    <p className="text-sm pt-4">Copyright ©Livra</p>
+  </footer>
+);
+
+export default Footer;
+```
+
+Vamos tecer alguns poucos comentários sobre o código mostrado, que deve ser de relativa fácil compreensão. A principal novidade é o uso da biblioteca `react-fontawesome`, que é importada no início do arquivo e utilizada a partir do componente `FontAwesomeIcon`. Este recebe no seu _props_ o nome do ícone, que deve ser importado de uma dos pacotes de ícones grátis ou pro (ver todas as opções em <https://fontawesome.com/how-to-use/on-the-web/using-with/react>).
+
+Uma vez que o componente está pronto, vamos substituí-lo no App. Para tal, edite o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import React from "react";
+import "../stylesheets/application.css";
+import Footer from "./components/Footer";
+
+const NavBar = () => <div className="w-full h-32 bg-green-500"></div>; // NavBar temporário
+
+function App() {
+  return (
+    <div className="flex flex-col h-screen justify-between overflow-y-scroll">
+      <NavBar />
+      <main className="w-full max-w-screen-xl mx-auto flex-grow">
+        <h1 className="text-3xl p-4">Hello world react</h1>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+export default App;
+```
+
+Ao acessar <http://localhost:3000/>), devemos obter o resultado abaixo:
+
+![Leiaute com footer no SPA com React](images/footer_layout_spa.png)
+
+### 3.2 Implementando o componente NavBar
+
+Agora vamos criar o component Navbar, que é um pouco mais complexo e deve ser responsivo. Crie e pasta `app/javascript/packs/components/NavBar` e o arquivo `index.js` dentro dela. O conteúdo do novo arquivo `app/javascript/packs/components/NavBar/index.js` deve ser
+
+```js
+// app/javascript/packs/components/NavBar/index.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import logo from "../../../images/logo.svg";
+import Menu from "./Menu";
+import MenuButton from "./MenuButton";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
+
+const Logo = () => <img src={logo} className="h-6" alt="A Livraria" />;
+const CartIcon = () => (
+  <FontAwesomeIcon
+    icon={faShoppingCart}
+    className="text-white text-xl hover:text-gray-300 hover:bg-transparent md:order-last"
+  />
+);
+
+class NavBar extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      menuOpen: false,
+    };
+    this.handleMenuClick = this.handleMenuClick.bind(this);
+  }
+
+  handleMenuClick() {
+    this.setState((prevState) => ({ menuOpen: !prevState.menuOpen }));
+  }
+
+  render() {
+    const { menuOpen } = this.state;
+    return (
+      <header className="w-full bg-green-500 text-white">
+        <div className="max-w-screen-xl mx-auto p-4 flex items-center justify-between flex-wrap">
+          <MenuButton onClick={this.handleMenuClick} />
+          <Logo />
+          <CartIcon />
+          <Menu open={menuOpen} />
+        </div>
+      </header>
+    );
+  }
+}
+
+export default NavBar;
+```
+
+Desta vez criamos um componente React de classe, pois ele possui um estado, que armazena se o menu "hamburguer" está aberto ou fechado. Na versão com renderização no servidor (usando apenas o RoR), era inserido um código Javascript com a biblioteca alpinejs para essa função. Como estamos usando o React, isso é incorporada mais naturalmente com o uso da variável de estado como veremos.
+
+Tanto o componente `<Logo />` quanto o `<CartIcon />` já estão definidos no mesmo arquivo. Só falta implementar o `<Menu />` e o `<MenuButton />`. Já nos adiantamos e passamos a função `this.handleMenuClick` para o _props_ do MenuButton a fim de possibilitar que ele modifique o estado (propriedade `menuOpen`). Além disso, o componente Menu deve receber o `menuOpen` para possibilitar que o menu possa ser escondido ou exibido.
+
+Para implementar o MenuButton, crie o arquivo `app/javascript/packs/components/NavBar/MenuButton.js` com o conteúdo
+
+```js
+// app/javascript/packs/components/NavBar/MenuButton.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBars } from "@fortawesome/free-solid-svg-icons";
+
+const MenuButton = (props) => {
+  const { onClick } = props;
+  return (
+    <button className="md:hidden" onClick={onClick}>
+      <FontAwesomeIcon
+        icon={faBars}
+        className="text-white text-xl hover:text-gray-300"
+      />
+    </button>
+  );
+};
+
+export default MenuButton;
+```
+
+Observe que, ao clicar no botão de "hambúrguer", a variável `menuOpen` deverá ser modificada através da função `onClick` recebida no _props_. Já para implementar o Menu, crie o arquivo `app/javascript/packs/components/NavBar/Menu.js` com o conteúdo
+
+```js
+// app/javascript/packs/components/NavBar/Menu.js
+import React from "react";
+import "../../../stylesheets/application.css";
+
+const menuItems = ["Blog", "Perguntas", "Notícias", "Contato"];
+
+const Menu = (props) => {
+  const { open } = props;
+  return (
+    <nav className="w-full md:w-auto md:block">
+      <ul>
+        {menuItems.map((item, id) => (
+          <li
+            key={id}
+            className={"pt-4 md:inline md:px-4 " + (!open && "hidden")}
+          >
+            {item}
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+};
+
+export default Menu;
+```
+
+Neste código, veja que a variável `open` determina a visibilidade do componente. Isto é feito adicionando a classe `hidden` do tailwincss nos elementos `li` de forma dinâmica.
+
+Uma vez criado o NavBar, vamos reescrever o componente principal no arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import React from "react";
+import "../stylesheets/application.css";
+import NavBar from "./components/NavBar";
+import Footer from "./components/Footer";
+
+function App() {
+  return (
+    <div className="flex flex-col h-screen justify-between overflow-y-scroll">
+      <NavBar />
+      <main className="w-full max-w-screen-xl mx-auto flex-grow">
+        <h1 className="text-3xl p-4">Hello world react</h1>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+export default App;
+```
+
+Se tudo estiver correto, é esperado que a aplicação fique como a da figura abaixo:
+
+![Leiaute completo no SPA com React](images/full_layout_spa.png)
+
+## Capítulo 4 - Utilizando a API Fetch ou Axios para fazer requisições assíncronas
+
+## Capítulo 5 - Criando componentes funcionais com estado utilizando Hooks
 
 ## Capítulo 6 - Configurando Rotas com o React Router
 
-## Capítulo 7 - Compartilhando o estado entre componentes com o Context
+<!-- ## Capítulo 7 - Compartilhando o estado entre componentes com o Context -->
 
-## Capítulo 8 - Adicionando autenticação com JWT
-
+<!-- ## Capítulo 8 - Adicionando autenticação com JWT -->
