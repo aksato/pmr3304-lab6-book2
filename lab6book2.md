@@ -401,7 +401,195 @@ Se tudo estiver correto, é esperado que a aplicação fique como a da figura ab
 
 ![Leiaute completo no SPA com React](images/full_layout_spa.png)
 
-## Capítulo 4 - Utilizando a API Fetch ou Axios para fazer requisições assíncronas
+## Capítulo 4 - Utilizando a API Fetch para fazer requisições assíncronas
+
+O próximo passo é montar a página inicial da nossa loja, exibindo os livros cadastrados no banco de dados. Para tal, devemos fazer a requisição HTTP assíncrona da rota `/products.json`, que é configurada automaticamente quando utilizamos o comando `rails scaffold` para gerar o modelo Products no RoR.
+
+Vamos antes personalizar a resposta da rota `/products.json`, que retorna a lista de todos os livros em formato JSON. Desejamos adicionar informações a respeito da foto do livro. Para tal, edite o arquivo `app/views/products/_product.json.jbuilder`
+
+```rb
+# app/views/products/_product.json.jbuilder
+json.extract! product, :id, :title, :description, :extension, :price, :created_at, :updated_at
+json.photo_path product.photo_path # ADICIONE ESTA LINHA
+json.has_photo product.has_photo? # ADICIONE ESTA LINHA
+json.url product_url(product, format: :json)
+```
+
+Para conferir a mudança, podemos acessar a rota <http://localhost:3000/products.json> pelo browser mesmo, que deve exibir algo do tipo:
+
+![Resposta em JSON da lista de produtos](images/product_json_resp.png)
+
+Para exibir nossa vitrine virtual, vamos criar um novo componente chamado Store. Crie o arquivo `app/javascript/packs/components/Store/index.js` com o conteúdo
+
+```js
+// app/javascript/packs/components/Store/index.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import Card from "./Card";
+
+class Store extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      books: [],
+    };
+  }
+
+  componentDidMount() {
+    fetch("/products.json")
+      .then((response) => response.json())
+      .then((result) => {
+        this.setState({ books: result });
+      });
+  }
+
+  render() {
+    const { books } = this.state;
+    return (
+      <section className="flex flex-col sm:flex-row sm:flex-wrap">
+        {books.map((book) => (
+          <Card book={book} key={book.id} />
+        ))}
+      </section>
+    );
+  }
+}
+
+export default Store;
+```
+
+Nesta listagem, a API fetch foi utilizada para fazer a requisição assíncrona para o backend, na rota que configuramos anteriormente. Para entender este código, é necessário relembrar o conhecimento de funções _lifecycle_ do React, que foi discutido na apostila de React. A aplicação final desta apostila é bem parecida com a exibida na listagem acima.
+
+Cada livro é renderizado segundo o componente Card, que deve ser gerado. Para tal, crie o arquivo `app/javascript/packs/components/Store/Card.js` com o conteúdo
+
+```js
+// app/javascript/packs/components/Store/Card.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faShoppingBasket } from "@fortawesome/free-solid-svg-icons";
+import noImage from "../../../images/no_image.svg";
+
+const Card = (props) => {
+  const { book } = props;
+  const formattedPrice = parseFloat(book.price).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return (
+    <div className="w-full sm:self-stretch sm:w-1/2 lg:w-1/3 xl:w-1/4 flex flex-col items-center py-8 px-4">
+      <img
+        src={
+          book.has_photo
+            ? require("../../../images/" + book.photo_path.slice(6))
+            : noImage
+        }
+        alt={book.title}
+        className="h-64"
+      />
+      <a
+        href="#"
+        className="text-base text-center py-4 sm:flex-grow hover:text-gray-500 hover:bg-transparent"
+      >
+        {book.title}
+      </a>
+      <p className="text-xl">R${formattedPrice}</p>
+      <button className="w-full btn cursor-pointer">
+        <FontAwesomeIcon icon={faShoppingBasket} className="text-2xl pr-3" />
+        <span className="text-sm">Comprar</span>
+      </button>
+    </div>
+  );
+};
+
+export default Card;
+```
+
+A única pequena novidade aqui é o uso da função `require`, geralmente adotada para importar pacotes, para importar dinamicamente uma imagem com Webpack.
+
+Por fim, basta incluir o novo componente Store na nossa aplicação principal, editando o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import React from "react";
+import "../stylesheets/application.css";
+import NavBar from "./components/NavBar";
+import Footer from "./components/Footer";
+import Store from "./components/Store"; // ADICIONE ESTA LINHA
+
+function App() {
+  return (
+    <div className="flex flex-col h-screen justify-between overflow-y-scroll">
+      <NavBar />
+      <main className="w-full max-w-screen-xl mx-auto flex-grow">
+        <Store /> {/* MODIFIQUE ESTA LINHA */}
+      </main>****
+      <Footer />
+    </div>
+  );
+}
+
+export default App;
+```
+
+Navegue para <http://localhost:3000> para conferir a nova página inicial com os livros:
+
+![Vitrine da nossa livraria SPA](images/store_front_spa.png)
+
+### 4.1 Implementando requisição POST para compra de livros
+
+Na aplicação original, quando o usuário clica no botão comprar de algum produto, é realiza uma requisição do tipo POST na rota `/line_items`. Na nossa SPA, o mesmo pode ser realizado assincronamente com a API fetch adicionando um argumento adicional a chamada. Para entender melhor, vamos implementar esta modificação; edite o arquivo `// app/javascript/packs/components/Store/Card.js`
+
+```js
+// app/javascript/packs/components/Store/Card.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faShoppingBasket } from "@fortawesome/free-solid-svg-icons";
+import noImage from "../../../images/no_image.svg";
+
+function postLineItem(id) { // ADICIONE ESTA FUNÇÂO
+  const csrf = document
+    .querySelector("meta[name='csrf-token']")
+    .getAttribute("content");
+  const requestOptions = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrf,
+    },
+    body: JSON.stringify({ product_id: id }),
+  };
+  fetch("/line_items.json", requestOptions)
+    .then((response) => response.json())
+    .then((data) => console.log(data));
+}
+
+const Card = (props) => {
+
+  ...
+
+      <p className="text-xl">R${formattedPrice}</p>
+      <button onClick={() => postLineItem(book.id)} className="w-full btn cursor-pointer"> {/* MODIFIQUE ESTA LINHA */}
+        <FontAwesomeIcon icon={faShoppingBasket} className="text-2xl pr-3" />
+        <span className="text-sm">Comprar</span>
+      </button>
+    </div>
+  );
+};
+
+export default Card;
+```
+
+O método (POST), assim como campos de cabeçalhos HTTP, todos armazenados na variável `requestOptions`, devem ser passados no segundo argumento da função `fetch`, como mostrado no código. O campo `X-CSRF-Token` é necessário para aplicações RoR, pois esta proteção é inserida por padrão. Na prática, as rotas POSTS são apenas acessíveis para usuários autenticados e, portanto, podemos remover essa proteção e, consequentemente, não necessitariamos desse cabeçalho.
+
+Note que estamos fazendo o _print_ da resposta do servidor por motivos de depuração apenas. Assim, podemos verificar se está funcionando clicando o botão e checando a saída no console, como mostrado na figura:
+
+![Comprando um produto da nossa livraria SPA](images/buy_store_spa.png)
+
+Lembre que a resposta do POST na rota `/line_items` retorna dados do carrinho. Assim, podemos deduzir que o item foi inserido no carrinho com o _id_ 4 e, checando em <http://localhost:3000/carts/4>, verificamos que o livro realmente está no carrinho:
+
+![Carrinho com o novo produto inserido](images/cart_example.png)
 
 ## Capítulo 5 - Criando componentes funcionais com estado utilizando Hooks
 
