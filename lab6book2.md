@@ -591,9 +591,154 @@ Lembre que a resposta do POST na rota `/line_items` retorna dados do carrinho. A
 
 ![Carrinho com o novo produto inserido](images/cart_example.png)
 
-## Capítulo 5 - Criando componentes funcionais com estado utilizando Hooks
+## Capítulo 5 - Configurando Rotas com o React Router
 
-## Capítulo 6 - Configurando Rotas com o React Router
+Como a SPA é contida em apenas uma página HTML, que é gerada no servidor e enviada para o browser do clinete, não é possível utilizar as configurações de rota do Backend.
+
+Sendo assim, uma forma de simular a navegação de links é utilizar a renderização condicional (discutida na apostila de React). No entanto, existe uma biblioteca bastante popular para essa função: o React Router <https://reactrouter.com/>, com vários recursos adicionais.
+
+Vamos utilizar esta biblioteca para implementar as rotas, como as páginas adicionais e o link para o carrinho e checkout. A primeira coisa a se fazer é instalar a bilbioteca com o yarn:
+
+```bash
+yarn add react-router-dom
+```
+
+Para utilizar o React Router, devemos seguir um procedimento padrão. Inicialmente, devemos envolver nossa aplicação com no componente `BrowserRouter`. Ou seja, para aplicar no nosso componente App, devemos fazer algo do tipo:
+
+```js
+import { BrowserRouter as Router } from "react-router-dom";
+
+function App() {
+  return <Router>...</Router>;
+}
+
+export default App;
+```
+
+Dentro da região definida pela abertura/fechamento da tag Router, podemos incluir o componente `Switch`, que define a região com o conteúdo a ser chaveado. Dentro dele, podemos associar diferentes rotas para renderizar componentes distintos. Vamos modificar nosso código para testar isso, edite o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import React from "react";
+import "../stylesheets/application.css";
+import NavBar from "./components/NavBar";
+import Footer from "./components/Footer";
+import Store from "./components/Store";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
+
+const GenericPage = (props) => (
+  <h1 className="text-center p-4 text-lg">{props.title}</h1>
+);
+const Blog = () => <GenericPage title="Blog Page" />;
+const Perguntas = () => <GenericPage title="Perguntas Page" />;
+const Noticias = () => <GenericPage title="Noticias Page" />;
+const Contato = () => <GenericPage title="Contato Page" />;
+
+function App() {
+  return (
+    <Router>
+      <div className="flex flex-col h-screen justify-between overflow-y-scroll">
+        <NavBar />
+        <main className="w-full max-w-screen-xl mx-auto flex-grow">
+          <Switch>
+            <Route path="/" exact component={Store} />
+            <Route path="/blog" component={Blog} />
+            <Route path="/perguntas" component={Perguntas} />
+            <Route path="/noticias" component={Noticias} />
+            <Route path="/contato" component={Contato} />
+          </Switch>
+        </main>
+        <Footer />
+      </div>
+    </Router>
+  );
+}
+
+export default App;
+```
+
+Antes de testar no browser, temos que alterar nosso Backend para responder as novas rotas (com o mesmo arquivo HTML que a raiz). Ou seja, edite o arquivo `config/routes.rb`
+
+```rb
+Rails.application.routes.draw do
+  resources :orders
+  resources :line_items, only: :create
+  resources :carts, only: :show
+  root to: "store#index"
+  resources :products
+
+  get 'blog', to: 'store#index' # ADICIONAR ESTA LINHA
+  get 'perguntas', to: 'store#index' # ADICIONAR ESTA LINHA
+  get 'noticias', to: 'store#index' # ADICIONAR ESTA LINHA
+  get 'contato', to: 'store#index' # ADICIONAR ESTA LINHA
+end
+```
+
+Agora podemos testar o funcionarmento do roteador React! Abra o seu broser em <http://localhost:3000/blog> e confira se o resultado é o seguinte
+
+![Roteamento manual com o React Router](images/router_blog_spa.png)
+
+Teste as demais rotas também: <http://localhost:3000/perguntas>, <http://localhost:3000/noticias> e <http://localhost:3000/contato>.
+
+Falta apenas aprendermos como criar links no nosso código React. Para tal, vamos adicionar os links na barra de navegação. Isto é, edite o arquivo `app/javascript/packs/components/NavBar/Menu.js`
+
+```js
+// app/javascript/packs/components/NavBar/Menu.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import { Link } from "react-router-dom";
+
+const menuItems = [
+  { title: "Blog", link: "/blog" },
+  { title: "Perguntas", link: "/perguntas" },
+  { title: "Notícias", link: "/noticias" },
+  { title: "Contato", link: "/contato" },
+];
+
+const Menu = (props) => {
+  const { open } = props;
+  return (
+    <nav className="w-full md:w-auto md:block">
+      <ul>
+        {menuItems.map((item) => (
+          <Link key={item.link} to={item.link}>
+            <li
+              className={
+                "pt-4 md:inline md:px-4 text-white hover:text-gray-300" +
+                (!open && "hidden")
+              }
+            >
+              {item.title}
+            </li>
+          </Link>
+        ))}
+      </ul>
+    </nav>
+  );
+};
+
+export default Menu;
+```
+
+Como é possível notar, o componente Link recebe a rota na propriedade `to` do _props_. Vamos também adicionar um link para a _Home_ no logo; edite o arquivo `app/javascript/packs/components/NavBar/index.js`
+
+```js
+// app/javascript/packs/components/NavBar/index.js
+...
+import { Link } from "react-router-dom";
+
+const Logo = () => (
+  <Link to="/">
+    <img src={logo} className="h-6" alt="A Livraria" />
+  </Link>
+);
+
+...
+```
+
+### 5.1 Criando uma rota com parâmetros
+
+## Capítulo 6 - Criando componentes funcionais com estado utilizando Hooks
 
 <!-- ## Capítulo 7 - Compartilhando o estado entre componentes com o Context -->
 
