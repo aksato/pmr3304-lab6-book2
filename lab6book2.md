@@ -738,7 +738,251 @@ const Logo = () => (
 
 ### 5.1 Criando uma rota com parâmetros
 
-## Capítulo 6 - Criando componentes funcionais com estado utilizando Hooks
+Em frameworkds de Backend, como o RoR, é comum configurar rotas com parâmetros. Por exemplo, podemos configurar a aplicação para responder no endereço <http://localhost:3000/books/1> com uma página de detalhes do livro com id igual a 1; o endereço <http://localhost:3000/books/2> com uma página do livro #2, e assim por diante.
+
+A biblioteca React Router permite replicar este comportamento direto no Frontend, ou seja, no código Javascript (+ React). Para demonstrar isso, vamos gerar um novo componente para exibir os detalhes do livro: crie o arquivo `app/javascript/packs/components/BookView/index.js` com o conteúdo
+
+```js
+// app/javascript/packs/components/BookView/index.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import { withRouter } from "react-router-dom";
+import noImage from "../../../images/no_image.svg";
+
+class BookView extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      details: {},
+    };
+  }
+
+  componentDidMount() {
+    const { bookId } = this.props.match.params;
+    fetch(`/products/${bookId}.json`)
+      .then((response) => response.json())
+      .then((result) => {
+        this.setState({ details: result });
+      });
+  }
+
+  render() {
+    const {
+      id,
+      title,
+      description,
+      price,
+      has_photo,
+      photo_path,
+    } = this.state.details;
+    const bookImage = has_photo
+      ? require("../../../images/" + photo_path.slice(6))
+      : noImage;
+    return (
+      <section className="flex flex-col sm:flex-row p-4">
+        <img
+          src={bookImage}
+          alt={title}
+          className="w-9/12 mx-auto sm:h-64 sm:w-auto sm:flex-shrink-0"
+        />
+        <div className="flex flex-col p-4">
+          <h3 className="text-2xl">{title}</h3>
+          <h3 className="text-lg pt-4">Preço: R${price}</h3>
+          <p className="pt-4">Descrição: {description} </p>
+        </div>
+      </section>
+    );
+  }
+}
+
+export default withRouter(BookView);
+```
+
+A principal diferença neste componente é a utilização do componente de alta ordem `withRouter` para "envelopar" o BookView, exportado na última linha. Este processo permiti acessar o parâmetro id da URL na variável `this.props.match.params` do _props_.
+
+Para implementar o roteamento, são necessário dois passos: 1) adicionar o `Route` dentro da região do `Switch` e 2) configurar o Backend para responder na rota `/books/:id`.
+
+Para o primeiro passo, basta editar o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import React from "react";
+import "../stylesheets/application.css";
+import NavBar from "./components/NavBar";
+import Footer from "./components/Footer";
+import Store from "./components/Store";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
+import BookView from "./components/BookView"; // ADICIONE ESTA LINHA
+
+...
+
+            <Route path="/contato" component={Contato} />
+            <Route path="/books/:bookId" component={BookView} /> // ADICIONE ESTA LINHA
+          </Switch>
+...
+```
+
+Note que o nome do parâmetro `bookId` é passado no `props.match.params` do componente `withRouter(BookView)` da última listagem.
+
+O segundo e último passo é alterar as configurações da rota, ou seja, editar o arquivo `config/routes.rb`
+
+```rb
+Rails.application.routes.draw do
+  resources :orders
+  resources :line_items, only: :create
+  resources :carts, only: :show
+  root to: "store#index"
+  resources :products
+
+  get 'blog', to: 'store#index'
+  get 'perguntas', to: 'store#index'
+  get 'noticias', to: 'store#index'
+  get 'contato', to: 'store#index'
+  get 'books/:id', to: 'store#index' # ADICIONAR ESTA LINHA
+end
+```
+
+Agora, ao acessar a URL <http://localhost:3000/books/1>, você deve ver uma tela parecida com a seguinte
+
+![Roteamento manual com parâmetros com o React Router](images/router_book_spa.png)
+
+Para finalizar, vamos adicionar um link para esta página na vitrina da loja. Para tal, edite o arquivo `app/javascript/packs/components/Store/Card.js`
+
+```js
+// app/javascript/packs/components/Store/Card.js
+import React from "react";
+import "../../../stylesheets/application.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faShoppingBasket } from "@fortawesome/free-solid-svg-icons";
+import noImage from "../../../images/no_image.svg";
+import { Link } from "react-router-dom"; // ADICIONAR ESTA LINHA
+
+...
+
+  return (
+    <div className="w-full sm:self-stretch sm:w-1/2 lg:w-1/3 xl:w-1/4 flex flex-col items-center py-8 px-4">
+      <Link to={`/books/${book.id}`}> {/* ADICIONAR ESTA LINHA */}
+        <img
+          src={
+            book.has_photo
+              ? require("../../../images/" + book.photo_path.slice(6))
+              : noImage
+          }
+          alt={book.title}
+          className="h-64"
+        />
+      </Link> {/* ADICIONAR ESTA LINHA */}
+      <Link to={`/books/${book.id}`} {/* MODIFICAR ESTA LINHA */}
+        className="text-base text-center py-4 sm:flex-grow hover:text-gray-500 hover:bg-transparent"
+      >
+        {book.title}
+      </Link> {/* MODIFICAR ESTA LINHA */}
+...
+```
+
+Acesse <http://localhost:3000> e teste os novos links para ver se está funcionando.
+
+## Capítulo 6 - Criando componentes funcionais com estado utilizando Hooks (opcional)
+
+Quando introduzimos o conceito de estado no React em apostilas anteriores, sempre destacamos que componentes com estado necesariamente deveriam ser implementados como classes. Isso não é mais verdade, desde a introdução dos _Hooks_, que permitem adicionar estado em componentes funcionais.
+
+Na realidade, os _Hooks_ possuem uso mais amplo, como demonstraremos mais adiante. A sua principal finalidade é possibilitar a reutilização de lógica de estado entre componentes. Por motivos não discutidos nesta apostila, isso era complexo de ser feito apenas com componentes de classe. Para mais detalhes, consulte <https://reactjs.org/docs/hooks-intro.html>.
+
+Sem mais delongas, vamos aplicar os _Hooks_ na nossa aplicação. O primeiro componente a ser analisado é o `Navbar`, que utiliza o estado para determinar se o menu está aberto ou não. Edite o arquivo `app/javascript/packs/components/NavBar/index.js`
+
+```js
+// app/javascript/packs/components/NavBar/index.js
+import React, { useState } from "react";
+
+...
+
+function NavBar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <header className="w-full bg-green-500 text-white">
+      <div className="max-w-screen-xl mx-auto p-4 flex items-center justify-between flex-wrap">
+        <MenuButton
+          onClick={() => {
+            setMenuOpen(!menuOpen);
+          }}
+        />
+        <Logo />
+        <CartIcon />
+        <Menu open={menuOpen} />
+      </div>
+    </header>
+  );
+}
+
+export default NavBar;
+```
+
+Agora o componente NavBar é funcional, então foi substituido por uma função. O `useState` retorna uma variável com o valor da propriedade do estado e uma função para modificá-la. O argumento é o valor inicial. Sendo assim, foi criado uma variável de estado `menuOpen` com o valor inicial `false`.
+
+### 6.2 Hooks e métodos lifecycle
+
+Você deve se lembrar que outra funcionalidade que só podia ser implementada em componentes de classe eram os métodos _lifecyle_. Vamos rever o código do componente `Store` para relembrar
+
+```js
+class Store extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      books: [],
+    };
+  }
+
+  componentDidMount() {
+    fetch("/products.json")
+      .then((response) => response.json())
+      .then((result) => {
+        this.setState({ books: result });
+      });
+  }
+
+  render() {
+    ...
+  }
+}
+
+export default Store;
+```
+
+O método de _lifecycle_ `componentDidMount` é chamado assim que o componente é montado. Como reproduzir este comportamento em um componente funcional com _Hooks_? Basta utilizar o _hook_ `useEffect`. Edite o arquivo `app/javascript/packs/components/Store/index.js`
+
+```js
+// app/javascript/packs/components/Store/index.js
+import React, { useState, useEffect } from "react";
+import "../../../stylesheets/application.css";
+import Card from "./Card";
+
+function Store() {
+  const [books, setBooks] = useState([]);
+
+  useEffect(() => {
+    fetch("/products.json")
+      .then((response) => response.json())
+      .then((result) => {
+        setBooks(result);
+      });
+  }, []);
+
+  return (
+    <section className="flex flex-col sm:flex-row sm:flex-wrap">
+      {books.map((book) => (
+        <Card book={book} key={book.id} />
+      ))}
+    </section>
+  );
+}
+
+export default Store;
+```
+
+A função passada como argumento do _hook_ `useEffect` é chamada na montagem do componente e é geralmnente executada a cada atualização do estado. Ao fornecer um _array_ vazio como segundo argumento, estamos indicando que só é necessário executar uma vez. Também podemos fornecer funções para serem executadas durante a desmontagem, para mais detalhes confira <https://reactjs.org/docs/hooks-effect.html>.
+
+O componente BookView é muito semelhante ao Store, então fica como exercício a sua conversão para componente funcional.
 
 <!-- ## Capítulo 7 - Compartilhando o estado entre componentes com o Context -->
 
