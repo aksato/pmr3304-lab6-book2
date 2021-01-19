@@ -538,7 +538,7 @@ Navegue para <http://localhost:3000> para conferir a nova página inicial com os
 
 ### 4.1 Implementando requisição POST para compra de livros
 
-Na aplicação original, quando o usuário clica no botão comprar de algum produto, é realiza uma requisição do tipo POST na rota `/line_items`. Na nossa SPA, o mesmo pode ser realizado assincronamente com a API fetch adicionando um argumento adicional a chamada. Para entender melhor, vamos implementar esta modificação; edite o arquivo `// app/javascript/packs/components/Store/Card.js`
+Na aplicação original, quando o usuário clica no botão comprar de algum produto, é realiza uma requisição do tipo POST na rota `/line_items`. Na nossa SPA, o mesmo pode ser realizado assincronamente com a API fetch adicionando um argumento adicional a chamada. Para entender melhor, vamos implementar esta modificação; edite o arquivo `app/javascript/packs/components/Store/Card.js`
 
 ```js
 // app/javascript/packs/components/Store/Card.js
@@ -548,24 +548,23 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faShoppingBasket } from "@fortawesome/free-solid-svg-icons";
 import noImage from "../../../images/no_image.svg";
 
-function postLineItem(id) { // ADICIONE ESTA FUNÇÂO
-  const csrf = document
-    .querySelector("meta[name='csrf-token']")
-    .getAttribute("content");
-  const requestOptions = {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRF-Token": csrf,
-    },
-    body: JSON.stringify({ product_id: id }),
-  };
-  fetch("/line_items.json", requestOptions)
-    .then((response) => response.json())
-    .then((data) => console.log(data));
-}
-
 const Card = (props) => {
+  function postLineItem(id) { /* ADICIONE ESTA FUNÇÃO */ }
+    const csrf = document
+      .querySelector("meta[name='csrf-token']")
+      .getAttribute("content");
+    const requestOptions = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrf,
+      },
+      body: JSON.stringify({ product_id: id }),
+    };
+    fetch("/line_items.json", requestOptions)
+      .then((response) => response.json())
+      .then((data) => console.log(data));
+  }
 
   ...
 
@@ -846,7 +845,7 @@ Agora, ao acessar a URL <http://localhost:3000/books/1>, você deve ver uma tela
 
 ![Roteamento manual com parâmetros com o React Router](images/router_book_spa.png)
 
-Para finalizar, vamos adicionar um link para esta página na vitrina da loja. Para tal, edite o arquivo `app/javascript/packs/components/Store/Card.js`
+Para finalizar, vamos adicionar um link para esta página na vitrine da loja. Para tal, edite o arquivo `app/javascript/packs/components/Store/Card.js`
 
 ```js
 // app/javascript/packs/components/Store/Card.js
@@ -983,6 +982,394 @@ export default Store;
 A função passada como argumento do _hook_ `useEffect` é chamada na montagem do componente e é geralmente executada a cada atualização do estado. Ao fornecer um _array_ vazio como segundo argumento, estamos indicando que só é necessário executar uma vez. Também podemos fornecer funções para serem executadas durante a desmontagem, para mais detalhes confira <https://reactjs.org/docs/hooks-effect.html>.
 
 O componente BookView é muito semelhante ao Store, então fica como exercício a sua conversão para componente funcional.
+
+## Capítulo 7 - Implementando o carrinho (opcional)
+
+Para finalizar, vamos implementar o carrinho de compras. Nenhum novo conceito será introduzido nessa seção, então a sua leitura é opcional (mas recomendada).
+
+### 7.1 Configurando a API do Backend para fornecer dados do carrinho
+
+A primeira atividades que faremos é configurar na API Backend uma rota para responder com as informações do carrinho. No RoR, isto deve ser feito em três passos. Primeiro, precisamos adicionar uma nova ação no controlador: edite o arquivo `app/controllers/carts_controller.rb`:
+
+```rb
+# app/controllers/carts_controller.rb
+class CartsController < ApplicationController
+  def show
+    @cart = Cart.find(params[:id])
+  end
+
+  def current # ADICIONAR ESTA LINHA
+  end # ADICIONAR ESTA LINHA
+end
+```
+
+Conjuntamente, devemos configurar a rota para esta ação: edite o arquivo `config/routes.rb`:
+
+```rb
+# config/routes.rb
+Rails.application.routes.draw do
+  resources :orders
+  resources :line_items, only: :create
+  get 'carts/current' # ADD THIS LINE
+  resources :carts, only: :show
+  ...
+```
+
+Por fim, a terceira e última etapa consiste em configurar uma _view_ JSON com as informações do carrinho e de seus itens. Para tal, crie o arquivo `app/views/carts/current.json.jbuilder` com o conteúdo
+
+```rb
+# app/views/carts/current.json.jbuilder
+json.extract! @cart, :id, :created_at, :updated_at
+json.cart_total @cart.total_items
+json.url cart_url(@cart, format: :json)
+json.line_items @cart.line_items do |line_item|
+    json.extract! line_item, :id, :product_id, :cart_id, :quantity, :created_at, :updated_at
+    json.product_title line_item.product.title
+    json.product_price line_item.product.price
+    json.product_photo_path line_item.product.photo_path
+    json.product_has_photo line_item.product.has_photo?
+end
+```
+
+Para testar a nossa nova funcionalidade, adicione alguns itens no carrinho e depois acesse <http://localhost:3000/carts/current.json>. Um exemplo de resposta é mostrada na imagem abaixo
+
+![Resposta em JSON do carrinho atual](images/cart_json_resp.png)
+
+### 7.2 Criando os componentes React e o roteamento no Frontend
+
+O procedimento para implementar o carrinho no Frontend vai seguir os mesmos passos para a criação de componentes com _data fetching_ do capítulo 4 e do roteamento do capítulo 5. Ademais, utilizaremos componentes funcionais com estado, que foram introduzidos no capítulo 6.
+
+Inicialmente, vamos criar o componente React do carrinho. Crie um novo arquivo `app/javascript/packs/components/Cart/index.js` com o conteúdo
+
+```js
+// app/javascript/packs/components/Cart/index.js
+import React, { useState, useEffect } from "react";
+import "../../../stylesheets/application.css";
+import noImage from "../../../images/no_image.svg";
+
+function Cart() {
+  const [cart, setCart] = useState({});
+
+  useEffect(() => {
+    fetch("/carts/current.json")
+      .then((response) => response.json())
+      .then((result) => {
+        setCart(result);
+      });
+  }, []);
+
+  function formatPrice(price) {
+    return parseFloat(price).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  const line_items = (cart && cart.line_items) || [];
+
+  return (
+    <section>
+      <table className="table-fixed w-full m-4">
+        <thead>
+          <tr className="bg-gray-500 text-white text-base">
+            <th className="py-2 w-1/2 ">Produto</th>
+            <th className="py-2 w-2/12 text-left">Preço</th>
+            <th className="py-2 w-2/12 text-left">Quantidade</th>
+            <th className="py-2 w-2/12 text-left">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {line_items.map((item) => (
+            <tr key={item.id}>
+              <td className="py-4 flex items-center text-sm">
+                <img
+                  src={
+                    item.product_has_photo
+                      ? require("../../../images/" +
+                          item.product_photo_path.slice(6))
+                      : noImage
+                  }
+                  alt={item.product_title}
+                  className="h-12"
+                />
+                <span className="pl-4">{item.product_title}</span>
+              </td>
+              <td className="py-4 text-sm">
+                {formatPrice(item.product_price)}
+              </td>
+              <td className="py-4 text-sm">{item.quantity}</td>
+              <td className="py-4 text-sm">
+                {formatPrice(item.product_price * item.quantity)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="w-full flex justify-end">
+        <div className="w-full md:max-w-md">
+          <h2 className="text-3xl pb-2 mt-8">Total no carrinho</h2>
+          <p className="text-sm py-4">
+            <span className="font-bold mr-4 ">Total</span>
+            {formatPrice(
+              line_items.reduce(
+                (a, b) => a + b["product_price"] * b["quantity"],
+                0
+              )
+            )}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default Cart;
+```
+
+Note que seria desejável subdividir este componente em outros para melhorar a legibilidade e a manutenção do código. Isto fica como exercício.
+
+Em seguida, vamos adicionar este componente no roteamento da aplicação. Edite o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import Cart from "./Cart";
+...
+
+          <Switch>
+            <Route path="/" exact component={Store} />
+            <Route path="/blog" component={Blog} />
+            <Route path="/perguntas" component={Perguntas} />
+            <Route path="/noticias" component={Noticias} />
+            <Route path="/contato" component={Contato} />
+            <Route path="/books/:bookId" component={BookView} />
+            <Route path="/cart" component={Cart} /> // ADICIONE ESTA LINHA
+          </Switch>
+
+...
+```
+
+Como adicionamos uma nova rota no Frontend, é necessário criá-la também no Backend. Para tal, edite o arquivo `config/routes.rb`:
+
+```rb
+# config/routes.rb
+Rails.application.routes.draw do
+  ...
+
+  get 'books/:id', to: 'store#index'
+  get 'cart', to: 'store#index' # ADICIONE ESTA LINHA
+end
+```
+
+Por fim, vamos adicionar o link para que o usuário possa ser redirecionado quando clicar no ícone do carrinho. Edite o arquivo `app/javascript/packs/components/NavBar/index.js`
+
+```js
+// app/javascript/packs/components/NavBar/index.js
+...
+
+const CartIcon = () => (
+  <Link className="group md:order-last flex" to="/cart"> { /* ADICIONAR ESTA LINHA */ }
+    <FontAwesomeIcon
+      icon={faShoppingCart}
+      className="text-white text-xl group-hover:text-gray-300 hover:bg-transparent"
+    />
+  </Link> { /* ADICIONAR ESTA LINHA */ }
+);
+
+...
+```
+
+A nossa implementação está completa - teste acessando <http://localhost:3000>, adicionando alguns itens no carrinho e clicando no ícone do canto superior esquerdo. Uma tela similar a seguinte deve ser exibida
+
+![Carrinho implementado na SPA React](images/cart_view_spa.png)
+
+### 7.3 Adicionando o indicador no ícone carrinho
+
+Para implementar o total do carrinho, vamos primeiro criar uma variável de estado na nossa aplicação raiz. Esta nova variável `total` vai armazenar o total do carrinho. Edite o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+import React, { useEffect, useState } from "react";
+
+...
+
+function App() {
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    fetch("/carts/current.json")
+      .then((response) => response.json())
+      .then((result) => {
+        setTotal(result.cart_total);
+      });
+  }, []);
+
+  return (
+    <Router>
+      <div className="flex flex-col h-screen justify-between overflow-y-scroll">
+        <NavBar total={total} />
+
+  ...
+```
+
+É possível ver pelo código que estamos fazendo uma requisição na montagem do componente para obter o valor atual do total do carrinho. Isso foi feito utilizando _hooks_, que é mais recomendado, mas poderia ser facilmente implementada com componente de classe (como no capítulo 4).
+
+Além disso, a propriedade `total` do estado é passado para o componente `NavBar`. Sendo assim, vamos editar o arquivo `app/javascript/packs/components/NavBar/index.js`
+
+```js
+// app/javascript/packs/components/NavBar/index.js
+...
+
+const CartIcon = ({ total }) => ( // MODIFICAR ESTA LINHA
+  <Link className="group md:order-last flex" to="/cart">
+    <FontAwesomeIcon
+      icon={faShoppingCart}
+      className="text-white text-xl group-hover:text-gray-300 hover:bg-transparent"
+    />
+    <span
+      className={`rounded-full -ml-1 -mt-2 self-start flex items-center justify-center bg-red-500 group-hover:bg-red-700 text-white group-hover:text-gray-300 w-${
+        total < 10 ? 4 : 5
+      } h-4`}
+    > { /* ADICIONAR ESTE ELEMENTO */ }
+      <p>{total}</p>
+    </span>
+  </Link>
+);
+
+function NavBar(props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { total } = props; // ADICIONAR ESTA LINHA
+
+  return (
+    <header className="w-full bg-green-500 text-white">
+      <div className="max-w-screen-xl mx-auto p-4 flex items-center justify-between flex-wrap">
+        <MenuButton
+          onClick={() => {
+            setMenuOpen(!menuOpen);
+          }}
+        />
+        <Logo />
+        <CartIcon total={total} /> { /* MODIFICAR ESTA LINHA */ }
+        <Menu open={menuOpen} />
+      </div>
+    </header>
+  );
+}
+
+export default NavBar;
+```
+
+O NavBar recebe o `total` no _props_ e passa adiante para o componente `CartIcon`, que faz a renderização do ícone do carrinho com o indicador de total.
+
+Ao abrir a nossa aplicação em <http://localhost:3000> agora, deve aparecer o indicador em vermelho no ícone do carrinho, como mostra a imagem
+
+![Ícone do carrinho com indicador implementado na SPA React](images/total_cart_spa.png)
+
+### 7.4 Atualizando o total após uma compra
+
+Toda vez que o usuário realizar uma compra bem sucedida, devemos atualizar o total do carrinho. Isso pode ser feito com uma nova requisição HTTP GET como feita na subseção anterior.
+
+No entanto, para simplificar nossa aplicação, vamos modificar a resposta da requisição POST de compra para devolver o total do carrinho. Para tal, edite o arquivo `app/controllers/line_items_controller.rb`:
+
+```rb
+# app/controllers/line_items_controller.rb
+class LineItemsController < ApplicationController
+    def create
+      product = Product.find(params[:product_id])
+      @line_item = @cart.add_product(product)
+
+      respond_to do |format|
+        if @line_item.save
+          format.html { redirect_to @line_item.cart, notice: 'Item inserido com sucesso ao carrinho.' }
+          format.json { render json: {"cart_total"=>@line_item.cart.total_items}, status: :created  } # MODIFICAR ESTA LINHA
+        else
+          format.html { render :new }
+          format.json { render json: @line_item.errors, status: :unprocessable_entity }
+        end
+      end
+    end
+  end
+```
+
+O botão de compra e, consequentemente, a requisição POST estão codificadas no componente `Card`. Sendo assim, precisamos passar a função `setTotal` para o componente `Card` para que este possa modificar o valor total. Como o estado `total` origina no App, vamos editar este componente. Edite o arquivo `app/javascript/packs/App.js`
+
+```js
+// app/javascript/packs/App.js
+...
+
+          <Switch>
+            <Route
+              path="/"
+              exact
+              render={(props) => <Store {...props} setTotal={setTotal} />}
+            />
+            <Route path="/blog" component={Blog} />
+
+...
+```
+
+O `App` enviou o estado para o componente inferior `Store`, que agora deve enviar mais para baixo para o `Card`. Edite o arquivo `app/javascript/packs/components/Store/index.js`
+
+```js
+// app/javascript/packs/components/Store/index.js
+...
+
+function Store(props) {
+
+  ...
+
+  const { setTotal } = props; // ADICIONAR ESTA LINHA
+  return (
+    <section className="flex flex-col sm:flex-row sm:flex-wrap">
+      {books.map((book) => (
+        <Card book={book} key={book.id} setTotal={setTotal} /> { /* MODIFICAR ESTA LINHA */ }
+      ))}
+    </section>
+  );
+}
+
+export default Store;
+```
+
+Finalmente, podemos receber o estado `total` no componente `Card` e implementar a atualização após compra. Para tal, edite o arquivo `app/javascript/packs/components/Store/Card.js`
+
+```js
+// app/javascript/packs/components/Store/Card.js
+...
+
+const Card = (props) => {
+  const { book, setTotal } = props;
+
+  ...
+
+  function postLineItem(id) {
+    ...
+    fetch("/line_items.json", requestOptions)
+      .then((response) => response.json())
+      .then((data) => {
+        setTotal(data.cart_total);
+      });
+  }
+
+...
+```
+
+Para testar, basta acessar a loja em <http://localhost:3000> e clicar no botão COMPRAR de algum livro. O indicador deve ser atualizado automaticamente.
+
+## Capítulo 8 - Considerações Finais
+
+Seguem algumas observações para aprimorar a aplicação e expandir o seu conhecimento de desenvolvimento de SPAs com React:
+
+- Se você realizou a atividade do último capítulo, você deve ter percebido que gerenciar o estado é relativamente complexo, mesmo para uma aplicação simples como a nossa. Por este motivo, existem bibliotecas específicas para facilitar este gerenciamento. A mais popular é a biblioteca **Redux** (<https://react-redux.js.org/>). No nosso caso, como não necessitamos de todas as funcionalidades do Redux, poderíamos utilizar apenas o **React Context** (<https://reactjs.org/docs/context.html>).
+
+- Nesta aplicação utilizamos o tailwindcss, que facilita bastante a estilização da nossa aplicação. Se você for utilizar o CSS puro, é bastante recomendado a utilização de uma biblioteca de estilo, como o **styled components** (https://styled-components.com/). Esta biblioteca isola o estilo de cada componente, facilitando o desenvolvimento. Além disso, cria nome de classes automaticamente, entre outras vantagens.
+
+- Se, ao invés de utilizar CSS, preferir frameworks mais "prontas para uso", você pode utilizar o Bootstrap diretamente como componentes com a biblioteca React Bootstrap (<https://react-bootstrap.github.io/>). No entanto, existem outros frameworks de design mais populares e mais adaptados ao React como o **Material-UI** (<https://material-ui.com/>).
+
+- As queries com a Fecth API que criamos tem uma deficiência na sua aplicação. Não especificamos o que exibir quando os dados estão em carregamento ou quando ocorre algum erro na requisição. Isso pode ser implementado criando variáveis de estado para cada _fetch_. Outra possibilidade é utilizar a biblioteca **React Query** (https://react-query.tanstack.com/) que, além de fornecer o estado da query ainda automatiza e isola o processo de sincronização do estado "remoto". Esta biblioteca é implementado com _hooks_; sendo assim, é uma boa oportunidade para verificar a vantagem dos _hooks_ em relação a componentes de classe.
+
+- Por fim, nada foi dito em relação a autenticação em SPAs React. Com o RoR de Backend, uma solução natural é utilizar o Devise, com uma página de login gerada pelo Rails e o resto da aplicação como SPA. Outra opção é utilizar a autenticação com tokens JWT (<https://jwt.io/>). A sua implementação depende do framework de Backend. De qualquer modo, o Frontend deve receber e armazenar o token (que tem o formato JSON) fornecido pelo Backend e deve enviá-lo em cada requisição.
+
+Uma última observação, um pouco fora do escopo desta apostila, é que também é possível gerar aplicações com renderização no servidor (_server-side rendering_ ou SSR) e até páginas estáticas com React! Para tal, é recomendado utilizar um outro Backend (não baseado em RoR). Dois frameworks bastante populares para realizar isso são: **Next.js** (<https://nextjs.org/>) para SSR e páginas estáticas e o gerador de sites estáticos **Gatsby** (<https://www.gatsbyjs.com/>).
 
 <!-- ## Capítulo 7 - Compartilhando o estado entre componentes com o Context -->
 
