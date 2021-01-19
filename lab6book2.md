@@ -11,7 +11,7 @@ modified: "2021-01-14T22:12:29.982Z"
 
 Como mencionado na apostila de Javascript/React, os frameworks de Javascript foram criados principalmente para o desenvolvimento de Aplicações de Página Única (_Single Page Applications_ ou SPA). Nesta apostila, demonstraremos o desenvolvimento de uma SPA a partir da adaptação da aplicação de Livraria Virtual desenvolvida anteriormente. Continuaremos com basicamente a mesma aplicação Ruby on Rails no Backend, enquanto que, para o Front-end, será utilizado o framework React.
 
-Em SPAs, a renderização é feita quase complemetamente no browser (cliente), através da manipulação do DOM com código Javascript (ver apostila do Laboratório 3 para relembrar o conceito de renderização no cliente). A atualização do conteúdo da página é feita através de requisições HTTP assíncronas, cujo conteúdo é geralmente formatado em JSON. Assim, o Backend-end deve gerar apenas uma página HTML, que deve fazer o link com os arquivos de Javascript que compõem a aplicação do Front-end.
+Em SPAs, a renderização é feita quase completamente no browser (cliente), através da manipulação do DOM com código Javascript (ver apostila do Laboratório 3 para relembrar o conceito de renderização no cliente). A atualização do conteúdo da página é feita através de requisições HTTP assíncronas, cujo conteúdo é geralmente formatado em JSON. Assim, o Backend-end deve gerar apenas uma página HTML, que deve fazer o link com os arquivos de Javascript que compõem a aplicação do Front-end.
 
 A principal vantagem de SPAs é a drástica redução do número de recarregamento (_reloading_) completo de páginas. Como as requisições são assíncronas, não é necessário ficar esperando a resposta do servidor a cada requisição HTTP. Além disso, uma vez obtida a resposta, ou seja, os dados requisitados, é possível alterar apenas a parte do DOM (estrutura da página) impactada. Como principal desvantagem das SPAs, é o seu pior desempenho em Otimização para Mecanismos de Buscas (_ Search Engine Optimization_ ou SEO), uma vez que o conteúdo dos arquivos HTMLs que geralmente são analisados nas buscas. Por fim, para páginas estáticas do site, o tempo de resposta é bem mais elevado quando comparado com páginas HTML puras.
 
@@ -22,7 +22,7 @@ Caso você já tenha pronta e funcionando a aplicação da Livraria Virtual em R
 O código inicial da aplicação Livraria Virtual pode ser obtido no repositório no seguinte link:
 <https://gitlab.uspdigital.usp.br/andre.kubagawa/livra-rails>.
 
-É recomendada a cópia do repositório para sua própria conta do Github ou Gitlab da USP. Assim, você pode gerar os seus própios commits e armazenar no repositório remoto. Para tal, primeiramente crie o seu repositório no GitHub ou Gitlab; por exemplo, em <https://github.com/usuario/livra-rails-react>. Depois, vamos fazer uma clonagem "crua" (sem os arquivos do diretório de trabalho) do repositório da livraria com o comando:
+É recomendada a cópia do repositório para sua própria conta do Github ou Gitlab da USP. Assim, você pode gerar os seus próprios commits e armazenar no repositório remoto. Para tal, primeiramente crie o seu repositório no GitHub ou Gitlab; por exemplo, em <https://github.com/usuario/livra-rails-react>. Depois, vamos fazer uma clonagem "crua" (sem os arquivos do diretório de trabalho) do repositório da livraria com o comando:
 
 ```bash
 git clone --bare https://gitlab.uspdigital.usp.br/andre.kubagawa/livra-rails.git
@@ -43,7 +43,7 @@ git clone https://github.com/usuario/livra-rails-react
 cd livra-rails-react
 ```
 
-Com o código da nossa aplicação inicial pronta, devemos instalar as bibliotecas e inicializar o banco de dados. Para isso, podemos executar os comnandos (rails e bundle devem já estar instalados):
+Com o código da nossa aplicação inicial pronta, devemos instalar as bibliotecas e inicializar o banco de dados. Para isso, podemos executar os comandos (rails e bundle devem já estar instalados):
 
 ```bash
 bundle install
@@ -313,7 +313,7 @@ class NavBar extends React.Component {
 export default NavBar;
 ```
 
-Desta vez criamos um componente React de classe, pois ele possui um estado, que armazena se o menu "hamburguer" está aberto ou fechado. Na versão com renderização no servidor (usando apenas o RoR), era inserido um código Javascript com a biblioteca alpinejs para essa função. Como estamos usando o React, isso é incorporada mais naturalmente com o uso da variável de estado como veremos.
+Desta vez criamos um componente React de classe, pois ele possui um estado, que armazena se o menu "hamburger" está aberto ou fechado. Na versão com renderização no servidor (usando apenas o RoR), era inserido um código Javascript com a biblioteca alpinejs para essa função. Como estamos usando o React, isso é incorporada mais naturalmente com o uso da variável de estado como veremos.
 
 Tanto o componente `<Logo />` quanto o `<CartIcon />` já estão definidos no mesmo arquivo. Só falta implementar o `<Menu />` e o `<MenuButton />`. Já nos adiantamos e passamos a função `this.handleMenuClick` para o _props_ do MenuButton a fim de possibilitar que ele modifique o estado (propriedade `menuOpen`). Além disso, o componente Menu deve receber o `menuOpen` para possibilitar que o menu possa ser escondido ou exibido.
 
@@ -581,7 +581,7 @@ const Card = (props) => {
 export default Card;
 ```
 
-O método (POST), assim como campos de cabeçalhos HTTP, todos armazenados na variável `requestOptions`, devem ser passados no segundo argumento da função `fetch`, como mostrado no código. O campo `X-CSRF-Token` é necessário para aplicações RoR, pois esta proteção é inserida por padrão. Na prática, as rotas POSTS são apenas acessíveis para usuários autenticados e, portanto, podemos remover essa proteção e, consequentemente, não necessitariamos desse cabeçalho.
+O método (POST), assim como campos de cabeçalhos HTTP, todos armazenados na variável `requestOptions`, devem ser passados no segundo argumento da função `fetch`, como mostrado no código. O campo `X-CSRF-Token` é necessário para aplicações RoR, pois esta proteção é inserida por padrão. Na prática, as rotas POSTS são apenas acessíveis para usuários autenticados e, portanto, podemos remover essa proteção e, consequentemente, não necessitaríamos desse cabeçalho.
 
 Note que estamos fazendo o _print_ da resposta do servidor por motivos de depuração apenas. Assim, podemos verificar se está funcionando clicando o botão e checando a saída no console, como mostrado na figura:
 
@@ -593,11 +593,11 @@ Lembre que a resposta do POST na rota `/line_items` retorna dados do carrinho. A
 
 ## Capítulo 5 - Configurando Rotas com o React Router
 
-Como a SPA é contida em apenas uma página HTML, que é gerada no servidor e enviada para o browser do clinete, não é possível utilizar as configurações de rota do Backend.
+Como a SPA é contida em apenas uma página HTML, que é gerada no servidor e enviada para o browser do cliente, não é possível utilizar as configurações de rota do Backend.
 
 Sendo assim, uma forma de simular a navegação de links é utilizar a renderização condicional (discutida na apostila de React). No entanto, existe uma biblioteca bastante popular para essa função: o React Router <https://reactrouter.com/>, com vários recursos adicionais.
 
-Vamos utilizar esta biblioteca para implementar as rotas, como as páginas adicionais e o link para o carrinho e checkout. A primeira coisa a se fazer é instalar a bilbioteca com o yarn:
+Vamos utilizar esta biblioteca para implementar as rotas, como as páginas adicionais e o link para o carrinho e checkout. A primeira coisa a se fazer é instalar a biblioteca com o yarn:
 
 ```bash
 yarn add react-router-dom
@@ -674,7 +674,7 @@ Rails.application.routes.draw do
 end
 ```
 
-Agora podemos testar o funcionarmento do roteador React! Abra o seu broser em <http://localhost:3000/blog> e confira se o resultado é o seguinte
+Agora podemos testar o funcionamento do roteador React! Abra o seu browser em <http://localhost:3000/blog> e confira se o resultado é o seguinte
 
 ![Roteamento manual com o React Router](images/router_blog_spa.png)
 
@@ -738,7 +738,7 @@ const Logo = () => (
 
 ### 5.1 Criando uma rota com parâmetros
 
-Em frameworkds de Backend, como o RoR, é comum configurar rotas com parâmetros. Por exemplo, podemos configurar a aplicação para responder no endereço <http://localhost:3000/books/1> com uma página de detalhes do livro com id igual a 1; o endereço <http://localhost:3000/books/2> com uma página do livro #2, e assim por diante.
+Em frameworks de Backend, como o RoR, é comum configurar rotas com parâmetros. Por exemplo, podemos configurar a aplicação para responder no endereço <http://localhost:3000/books/1> com uma página de detalhes do livro com id igual a 1; o endereço <http://localhost:3000/books/2> com uma página do livro #2, e assim por diante.
 
 A biblioteca React Router permite replicar este comportamento direto no Frontend, ou seja, no código Javascript (+ React). Para demonstrar isso, vamos gerar um novo componente para exibir os detalhes do livro: crie o arquivo `app/javascript/packs/components/BookView/index.js` com o conteúdo
 
@@ -884,7 +884,7 @@ Acesse <http://localhost:3000> e teste os novos links para ver se está funciona
 
 ## Capítulo 6 - Criando componentes funcionais com estado utilizando Hooks (opcional)
 
-Quando introduzimos o conceito de estado no React em apostilas anteriores, sempre destacamos que componentes com estado necesariamente deveriam ser implementados como classes. Isso não é mais verdade, desde a introdução dos _Hooks_, que permitem adicionar estado em componentes funcionais.
+Quando introduzimos o conceito de estado no React em apostilas anteriores, sempre destacamos que componentes com estado necessariamente deveriam ser implementados como classes. Isso não é mais verdade, desde a introdução dos _Hooks_, que permitem adicionar estado em componentes funcionais.
 
 Na realidade, os _Hooks_ possuem uso mais amplo, como demonstraremos mais adiante. A sua principal finalidade é possibilitar a reutilização de lógica de estado entre componentes. Por motivos não discutidos nesta apostila, isso era complexo de ser feito apenas com componentes de classe. Para mais detalhes, consulte <https://reactjs.org/docs/hooks-intro.html>.
 
@@ -918,7 +918,7 @@ function NavBar() {
 export default NavBar;
 ```
 
-Agora o componente NavBar é funcional, então foi substituido por uma função. O `useState` retorna uma variável com o valor da propriedade do estado e uma função para modificá-la. O argumento é o valor inicial. Sendo assim, foi criado uma variável de estado `menuOpen` com o valor inicial `false`.
+Agora o componente NavBar é funcional, então foi substituído por uma função. O `useState` retorna uma variável com o valor da propriedade do estado e uma função para modificá-la. O argumento é o valor inicial. Sendo assim, foi criado uma variável de estado `menuOpen` com o valor inicial `false`.
 
 ### 6.2 Hooks e métodos lifecycle
 
@@ -980,7 +980,7 @@ function Store() {
 export default Store;
 ```
 
-A função passada como argumento do _hook_ `useEffect` é chamada na montagem do componente e é geralmnente executada a cada atualização do estado. Ao fornecer um _array_ vazio como segundo argumento, estamos indicando que só é necessário executar uma vez. Também podemos fornecer funções para serem executadas durante a desmontagem, para mais detalhes confira <https://reactjs.org/docs/hooks-effect.html>.
+A função passada como argumento do _hook_ `useEffect` é chamada na montagem do componente e é geralmente executada a cada atualização do estado. Ao fornecer um _array_ vazio como segundo argumento, estamos indicando que só é necessário executar uma vez. Também podemos fornecer funções para serem executadas durante a desmontagem, para mais detalhes confira <https://reactjs.org/docs/hooks-effect.html>.
 
 O componente BookView é muito semelhante ao Store, então fica como exercício a sua conversão para componente funcional.
 
